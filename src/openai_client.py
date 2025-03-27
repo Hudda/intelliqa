@@ -31,14 +31,22 @@ def generate_embeddings(embedding_sources, model=OPENAI_EMBEDDING_MODEL):
 
 def get_embeddings_with_sparse(elements):
     embedding_sources = [element["metadata"]["embedding"] for element in elements]
+    
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(generate_embeddings, embedding_sources), executor.submit(bm25_encoder.encode_documents, embedding_sources)]
+        futures = [
+            executor.submit(generate_embeddings, embedding_sources),
+            executor.submit(bm25_encoder.encode_documents, embedding_sources)
+        ]
         results = [future.result() for future in futures]
     
     [embeddings, sparse_embeddings] = results
 
+    filtered_elements = []
     for i in range(len(elements)):
-        elements[i]["values"] = embeddings[i].embedding
-        elements[i]["sparse_values"] = sparse_embeddings[i]
+        if len(sparse_embeddings[i]["values"]) > 0:
+            elements[i]["values"] = embeddings[i].embedding
+            elements[i]["sparse_values"] = sparse_embeddings[i]
+            filtered_elements.append(elements[i])
+    
+    return filtered_elements
 
-    return elements
